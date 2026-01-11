@@ -92,6 +92,32 @@ export const generateResponse = async (
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error(error.message || "An unexpected error occurred.");
+    
+    let errorMessage = error.message || JSON.stringify(error);
+
+    // Handle Quota Limits (Error 429)
+    if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
+      throw new Error("⚠️ لقد تجاوزت الحد اليومي المسموح به لاستخدام الذكاء الاصطناعي (Quota Exceeded). يرجى الانتظار قليلاً أو استخدام مفتاح API مدفوع.");
+    }
+    
+    // Handle Model Overloaded (Error 503)
+    if (errorMessage.includes("503") || errorMessage.includes("overloaded")) {
+      throw new Error("⚠️ الخادم مشغول جداً حالياً (Model Overloaded). يرجى المحاولة مرة أخرى.");
+    }
+
+    // Handle Clean Output for raw JSON errors
+    if (errorMessage.includes("{")) {
+       try {
+         // Attempt to extract just the message text if it's a JSON string
+         const match = errorMessage.match(/"message":\s*"([^"]+)"/);
+         if (match && match[1]) {
+           errorMessage = match[1];
+         }
+       } catch (e) {
+         // Keep original if parsing fails
+       }
+    }
+
+    throw new Error(errorMessage || "حدث خطأ غير متوقع في الاتصال بالنظام.");
   }
 };
