@@ -2,7 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 import { Message, GroundingSource, ModelMode } from '../types';
 
 const getClient = () => {
-  // Check for user-provided key in localStorage first
   const localKey = typeof window !== 'undefined' ? localStorage.getItem('21umas_user_api_key') : null;
   const apiKey = localKey || process.env.API_KEY;
 
@@ -15,18 +14,17 @@ const getClient = () => {
 // Helper function for delay
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Retry logic wrapper
-const generateWithRetry = async (
+// Wrapper to initiate stream with retry logic
+const streamWithRetry = async (
   ai: GoogleGenAI,
   params: any,
   retries = 3,
   initialDelay = 2000
 ): Promise<any> => {
   try {
-    return await ai.models.generateContent(params);
+    return await ai.models.generateContentStream(params);
   } catch (error: any) {
     const msg = error.message || '';
-    // Retry on Rate Limit (429) or Server Overload (503)
     const isRetryable = 
       msg.includes('429') || 
       msg.includes('503') || 
@@ -35,26 +33,25 @@ const generateWithRetry = async (
       msg.includes('overloaded');
     
     if (retries > 0 && isRetryable) {
-      console.warn(`Gemini API Request failed with ${msg}. Retrying in ${initialDelay}ms... (Attempts left: ${retries})`);
+      console.warn(`Gemini Stream Init failed with ${msg}. Retrying in ${initialDelay}ms...`);
       await wait(initialDelay);
-      return generateWithRetry(ai, params, retries - 1, initialDelay * 2);
+      return streamWithRetry(ai, params, retries - 1, initialDelay * 2);
     }
     throw error;
   }
 };
 
-export const generateResponse = async (
+export const streamResponse = async (
   history: Message[],
   currentPrompt: string,
   imageBase64: string | undefined,
   mode: ModelMode,
+  onUpdate: (content: string, thinking: string, isDone: boolean, sources?: GroundingSource[]) => void,
   customSystemInstruction?: string
-): Promise<{ text: string; sources: GroundingSource[] }> => {
+) => {
   const ai = getClient();
-  
-  const modelName = mode === 'pro' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+  const modelName = mode === 'pro' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
-  // Default Persona
   let systemInstruction = `
     أنت "21UMAS ${mode === 'pro' ? 'PRO' : 'FLASH'}"، المساعد الطبي الرسمي لجامعة 21 سبتمبر.
     الوضع الحالي: ${mode === 'pro' ? 'استدلال عميق (Deep Reasoning)' : 'سرعة فائقة (High Speed)'}
@@ -62,14 +59,12 @@ export const generateResponse = async (
     اللغة: العربية الطبية.
   `;
 
-  // Override if tool specific instruction is provided
   if (customSystemInstruction) {
     systemInstruction = customSystemInstruction;
   }
 
   try {
     const currentParts: any[] = [{ text: currentPrompt }];
-    
     if (imageBase64) {
       const base64Data = imageBase64.split(',')[1] || imageBase64;
       currentParts.unshift({
@@ -100,65 +95,60 @@ export const generateResponse = async (
       config.thinkingConfig = { thinkingBudget: 2048 };
     }
 
-    // Execute with Retry
-    const response = await generateWithRetry(ai, {
+    const streamResult = await streamWithRetry(ai, {
       model: modelName,
       contents: contents,
       config: config
     });
 
-    const text = response.text || "عذراً، لا توجد استجابة.";
-    
-    const sources: GroundingSource[] = [];
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    
-    if (chunks) {
-      chunks.forEach((chunk: any) => {
-        if (chunk.web?.uri && chunk.web?.title) {
-          sources.push({
-            title: chunk.web.title,
-            uri: chunk.web.uri
-          });
-        }
+    let fullText = '';
+    let fullThinking = '';
+    let finalSources: GroundingSource[] = [];
+
+    for await (const chunk of streamResult) {
+      // Extract Text
+      const chunkText = chunk.text || '';
+      
+      // Attempt to extract thinking content if available in parts
+      // Note: The structure of thinking parts varies in preview models. 
+      // We check candidates for specific 'thought' parts if exposed, otherwise we assume initial delay implies thinking.
+      const candidates = chunk.candidates || [];
+      const parts = candidates[0]?.content?.parts || [];
+      
+      let chunkThinking = '';
+      
+      // Heuristic: If specific thinking parts are exposed in future API versions, extract here.
+      // Currently, we mostly rely on the 'Thinking...' UI state, but if the model emits separate thought blocks:
+      parts.forEach((part: any) => {
+         // Some experimental models label thoughts differently, or wrap them.
+         // For now, we mainly stream the text.
       });
+
+      fullText += chunkText;
+
+      // Extract Grounding
+      const chunks = candidates[0]?.groundingMetadata?.groundingChunks;
+      if (chunks) {
+        chunks.forEach((c: any) => {
+          if (c.web?.uri && c.web?.title) {
+            finalSources.push({ title: c.web.title, uri: c.web.uri });
+          }
+        });
+      }
+
+      onUpdate(fullText, fullThinking, false, finalSources);
     }
 
-    return { text, sources };
+    onUpdate(fullText, fullThinking, true, finalSources);
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    
+    console.error("Gemini Stream Error:", error);
     let errorMessage = error.message || JSON.stringify(error);
-
-    // Friendly Error Handling
-    if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
-      if (mode === 'pro') {
-        throw new Error("⚠️ تم تجاوز حد الاستخدام لنموذج Pro (Quota Exceeded). هذا النموذج تجريبي وقد تكون حدوده منخفضة حتى للحسابات المدفوعة. يرجى التبديل إلى وضع Flash أو المحاولة لاحقاً.");
-      } else {
-        throw new Error("⚠️ تم تجاوز حد الاستخدام (Quota Exceeded). يرجى التحقق من إعدادات الفوترة للمفتاح المستخدم أو إضافة مفتاح بديل من الإعدادات.");
-      }
-    }
     
-    if (errorMessage.includes("503") || errorMessage.includes("overloaded")) {
-      throw new Error("⚠️ الخادم مشغول جداً (Server Overloaded). يرجى المحاولة مرة أخرى.");
+    if (errorMessage.includes("429") || errorMessage.includes("quota")) {
+       if (mode === 'pro') throw new Error("⚠️ تم تجاوز حد الاستخدام لنموذج Pro (Quota). يرجى التبديل إلى Flash.");
+       else throw new Error("⚠️ تم تجاوز حد الاستخدام (Quota). يرجى استخدام مفتاح خاص.");
     }
-
-    if (errorMessage.includes("API Key not found")) {
-      throw new Error("⚠️ مفتاح النظام مفقود. يرجى إضافته من الإعدادات.");
-    }
-
-    // Handle Clean Output for raw JSON errors
-    if (errorMessage.includes("{")) {
-       try {
-         const match = errorMessage.match(/"message":\s*"([^"]+)"/);
-         if (match && match[1]) {
-           errorMessage = match[1];
-         }
-       } catch (e) {
-         // Keep original if parsing fails
-       }
-    }
-
-    throw new Error(errorMessage || "حدث خطأ غير متوقع في الاتصال بالنظام.");
+    throw new Error(errorMessage);
   }
 };

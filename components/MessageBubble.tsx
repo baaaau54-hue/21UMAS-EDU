@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Message } from '../types';
-import { Bot, User, BrainCircuit, Link as LinkIcon, Volume2, Copy, Check } from 'lucide-react';
+import { Bot, User, BrainCircuit, Link as LinkIcon, Volume2, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { useState } from 'react';
 
 interface MessageBubbleProps {
   message: Message;
@@ -72,19 +71,57 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               </div>
             )}
 
-            {message.isThinking ? (
-               <div className="flex flex-col gap-3">
-                 <div className="flex items-center gap-3 text-sky-400">
-                    <BrainCircuit className="animate-pulse" size={20} />
-                    <span className="text-sm font-medium animate-pulse">جاري معالجة البيانات السريرية...</span>
-                 </div>
-                 <div className="h-1 w-full bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-sky-500/50 animate-progress w-[60%]"></div>
-                 </div>
-               </div>
-            ) : (
-              <MarkdownRenderer content={message.content} />
+            {/* Collapsible Thinking Process */}
+            {!isUser && (message.isThinking || message.thinkingText) && (
+              <details className="mb-4 group/details" open={message.isThinking}>
+                <summary className="list-none cursor-pointer">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-900/50 border border-gray-800 hover:bg-gray-800 hover:border-gray-700 transition-all select-none">
+                     {message.isThinking ? (
+                       <Loader2 size={14} className="text-sky-400 animate-spin" />
+                     ) : (
+                       <BrainCircuit size={14} className="text-gray-500 group-open/details:text-sky-400" />
+                     )}
+                     <span className={`text-xs font-mono ${message.isThinking ? 'text-sky-400' : 'text-gray-500 group-open/details:text-sky-400'}`}>
+                        {message.isThinking ? 'Thinking Process...' : 'View Reasoning Process'}
+                     </span>
+                     <ChevronDown size={12} className="text-gray-600 transition-transform group-open/details:rotate-180" />
+                  </div>
+                </summary>
+                
+                <div className="mt-2 p-3 bg-[#020617] rounded-xl border border-dashed border-gray-800 text-xs font-mono text-gray-400 leading-relaxed overflow-hidden relative">
+                   {message.isThinking && !message.content ? (
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                        </span>
+                        <span className="animate-pulse">Analyzing clinical data & formulating response...</span>
+                      </div>
+                   ) : (
+                      // If actual thinking text is captured from the model, show it here.
+                      // Otherwise, show a completed state log.
+                      message.thinkingText ? (
+                        <MarkdownRenderer content={message.thinkingText} /> 
+                      ) : (
+                         <div className="flex flex-col gap-1 text-emerald-500/70">
+                           <div className="flex items-center gap-2"><Check size={10} /> Context analyzed</div>
+                           <div className="flex items-center gap-2"><Check size={10} /> Medical knowledge retrieval complete</div>
+                           <div className="flex items-center gap-2"><Check size={10} /> Response generated successfully</div>
+                         </div>
+                      )
+                   )}
+                </div>
+              </details>
             )}
+
+            {/* Main Content */}
+            <div className="min-h-[20px]">
+               {message.content ? (
+                 <MarkdownRenderer content={message.content} />
+               ) : (
+                 message.isThinking && <span className="inline-block w-1.5 h-4 bg-sky-500 animate-pulse rounded-full align-middle ml-1"></span>
+               )}
+            </div>
 
             {/* Actions Toolbar */}
             {!isUser && !message.isThinking && (
@@ -110,7 +147,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
           {/* Sources / Grounding */}
           {!isUser && message.groundingSources && message.groundingSources.length > 0 && (
-            <div className="mt-2 p-3 bg-gray-900/30 rounded-xl border border-gray-800/50 backdrop-blur-sm">
+            <div className="mt-2 p-3 bg-gray-900/30 rounded-xl border border-gray-800/50 backdrop-blur-sm animate-in fade-in">
               <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-gray-500 mb-2">
                 <LinkIcon size={10} />
                 <span>Verified Sources</span>

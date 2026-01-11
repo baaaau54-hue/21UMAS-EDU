@@ -4,6 +4,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   isThinking?: boolean;
+  thinkingText?: string; // New field for the collapsible thinking process
   groundingSources?: GroundingSource[];
   image?: string;
   modelUsed?: 'Pro' | 'Flash';

@@ -58,7 +58,7 @@ import { TravelPanel } from './components/TravelPanel';
 import { ApiKeyModal } from './components/ApiKeyModal';
 
 import { Message, ModelMode, AppTab } from './types';
-import { generateResponse } from './services/geminiService';
+import { streamResponse } from './services/geminiService';
 import { Send, AlertCircle, Paperclip, X, Mic, Image as ImageIcon } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -120,42 +120,51 @@ const App: React.FC = () => {
     setError(null);
     setActiveTab('dashboard'); 
 
+    // Create placeholder for model response
     const thinkingId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, {
       id: thinkingId,
       role: 'model',
-      content: '',
+      content: '', // Start empty
       timestamp: new Date(),
-      isThinking: true,
+      isThinking: true, // Show thinking box immediately
       modelUsed: currentMode === 'pro' ? 'Pro' : 'Flash'
     }]);
 
     try {
-      const { text: responseText, sources } = await generateResponse(
+      await streamResponse(
         messages, 
         userMessage.content, 
         image || undefined, 
         currentMode,
+        (content, thinking, isDone, sources) => {
+            setMessages(prev => prev.map(msg => {
+                if (msg.id === thinkingId) {
+                    return {
+                        ...msg,
+                        content: content,
+                        thinkingText: thinking,
+                        isThinking: !isDone && !content, // Still thinking if no content yet or stream not done
+                        groundingSources: sources,
+                        // Ensure we keep the modelUsed tag
+                        modelUsed: currentMode === 'pro' ? 'Pro' : 'Flash'
+                    };
+                }
+                return msg;
+            }));
+            
+            // Auto scroll on update
+            if (activeTab === 'dashboard') {
+               // Optional: Throttle this if performance issues arise
+               scrollToBottom(); 
+            }
+        },
         customSystemInstruction
       );
-      
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === thinkingId) {
-          return {
-            ...msg,
-            content: responseText,
-            isThinking: false,
-            groundingSources: sources,
-            modelUsed: currentMode === 'pro' ? 'Pro' : 'Flash'
-          };
-        }
-        return msg;
-      }));
     } catch (err: any) {
       setError(err.message || 'خطأ في الاتصال بالنظام.');
       setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
       
-      // Auto open settings if key issue
       if (err.message?.includes('Quota') || err.message?.includes('Key')) {
         setTimeout(() => setIsSettingsOpen(true), 2000);
       }
