@@ -132,7 +132,11 @@ export const generateResponse = async (
 
     // Friendly Error Handling
     if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("⚠️ النظام مشغول (Quota Exceeded). يرجى الضغط على زر المفتاح (Key) في الأعلى واستخدام مفتاحك الخاص مجاناً.");
+      if (mode === 'pro') {
+        throw new Error("⚠️ تم تجاوز حد الاستخدام لنموذج Pro (Quota Exceeded). هذا النموذج تجريبي وقد تكون حدوده منخفضة حتى للحسابات المدفوعة. يرجى التبديل إلى وضع Flash أو المحاولة لاحقاً.");
+      } else {
+        throw new Error("⚠️ تم تجاوز حد الاستخدام (Quota Exceeded). يرجى التحقق من إعدادات الفوترة للمفتاح المستخدم أو إضافة مفتاح بديل من الإعدادات.");
+      }
     }
     
     if (errorMessage.includes("503") || errorMessage.includes("overloaded")) {
