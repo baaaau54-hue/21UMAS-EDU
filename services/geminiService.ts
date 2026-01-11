@@ -52,7 +52,7 @@ export const generateResponse = async (
 ): Promise<{ text: string; sources: GroundingSource[] }> => {
   const ai = getClient();
   
-  const modelName = mode === 'pro' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+  const modelName = mode === 'pro' ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
 
   // Default Persona
   let systemInstruction = `
