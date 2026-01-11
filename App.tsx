@@ -59,7 +59,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 
 import { Message, ModelMode, AppTab } from './types';
 import { streamResponse } from './services/geminiService';
-import { Send, AlertCircle, Paperclip, X, Mic, Image as ImageIcon } from 'lucide-react';
+import { Send, AlertCircle, Paperclip, X, Mic, Image as ImageIcon, ArrowUp } from 'lucide-react';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -144,18 +144,15 @@ const App: React.FC = () => {
                         ...msg,
                         content: content,
                         thinkingText: thinking,
-                        isThinking: !isDone && !content, // Still thinking if no content yet or stream not done
+                        isThinking: !isDone && !content, 
                         groundingSources: sources,
-                        // Ensure we keep the modelUsed tag
                         modelUsed: currentMode === 'pro' ? 'Pro' : 'Flash'
                     };
                 }
                 return msg;
             }));
             
-            // Auto scroll on update
             if (activeTab === 'dashboard') {
-               // Optional: Throttle this if performance issues arise
                scrollToBottom(); 
             }
         },
@@ -195,7 +192,6 @@ const App: React.FC = () => {
 
   const renderMainContent = () => {
     switch (activeTab) {
-      // Existing Routes
       case 'diagnosis': return <DiagnosisPanel onSubmit={handleToolSubmit} />;
       case 'drugs': return <DrugPanel onSubmit={(p) => handleToolSubmit(p)} />;
       case 'library': return <LibraryPanel onSubmit={(p) => handleToolSubmit(p)} />;
@@ -235,8 +231,6 @@ const App: React.FC = () => {
       case 'dental': return <DentalPanel onSubmit={handleToolSubmit} />;
       case 'ethics': return <EthicsPanel onSubmit={handleToolSubmit} />;
       case 'stats': return <StatsPanel onSubmit={handleToolSubmit} />;
-
-      // New Genius Expansion Routes
       case 'gene': return <GenePanel onSubmit={handleToolSubmit} />;
       case 'trauma': return <TraumaPanel onSubmit={handleToolSubmit} />;
       case 'ecg': return <EcgPanel onSubmit={handleToolSubmit} />;
@@ -252,7 +246,7 @@ const App: React.FC = () => {
       default:
         return (
           <>
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth pb-32">
               <div className="max-w-4xl mx-auto w-full">
                 {messages.length === 0 ? (
                   <Welcome onNavigate={setActiveTab} />
@@ -282,71 +276,7 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
-
-            <div className="p-4 md:p-6 bg-[#020617]/80 backdrop-blur-xl border-t border-gray-800/50 z-20">
-              <div className="max-w-4xl mx-auto w-full flex flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <ModelSelector currentMode={mode} onModeChange={setMode} disabled={isLoading} />
-                  {selectedImage && (
-                    <div className="flex items-center gap-2 bg-gray-800/50 px-3 py-1 rounded-lg border border-gray-700 animate-in fade-in">
-                      <ImageIcon size={14} className="text-sky-400" />
-                      <span className="text-xs text-gray-300">Image Attached</span>
-                      <button onClick={() => setSelectedImage(null)} className="hover:text-red-400">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="relative flex items-end gap-2 bg-[#1e293b]/50 border border-gray-700/50 rounded-2xl p-2 shadow-2xl focus-within:ring-2 focus-within:ring-sky-500/30 focus-within:border-sky-500/30 transition-all">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center justify-center h-10 w-10 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all mb-1"
-                  >
-                    <Paperclip size={20} />
-                  </button>
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
-                  <textarea
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={mode === 'pro' ? "اكتب تفاصيل الحالة السريرية للتحليل العميق..." : "اكتب سؤالك هنا للإجابة السريعة..."}
-                    className="w-full bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 resize-none max-h-32 py-3 min-h-[44px] leading-relaxed"
-                    rows={1}
-                    style={{ height: 'auto', minHeight: '44px' }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
-                    }}
-                  />
-                  <button className="flex items-center justify-center h-10 w-10 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all mb-1">
-                     <Mic size={20} />
-                  </button>
-                  <button
-                    onClick={handleManualSend}
-                    disabled={(!inputValue.trim() && !selectedImage) || isLoading}
-                    className={`mb-1 p-2 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                      (inputValue.trim() || selectedImage) && !isLoading
-                        ? mode === 'pro' 
-                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-purple-900/20'
-                          : 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-900/20'
-                        : 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <Send size={18} className={isLoading ? 'opacity-0' : 'opacity-100'} />
-                    {isLoading && (
-                       <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                       </div>
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div className="text-center mt-3 opacity-40">
-                 <p className="text-[10px] font-mono tracking-widest uppercase">Secured by 21UMAS Clinical Protocols • v2.1.0</p>
-              </div>
-            </div>
+            {/* Floating Input Area included in parent */}
           </>
         );
     }
@@ -358,11 +288,85 @@ const App: React.FC = () => {
         className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
         style={{ backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`, backgroundSize: '24px 24px' }}
       ></div>
+      
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      
       <div className="flex-1 flex flex-col h-full relative z-10">
         <Header onOpenSettings={() => setIsSettingsOpen(true)} />
+        
         <main className="flex-1 overflow-hidden relative flex flex-col w-full">
            {renderMainContent()}
+           
+           {/* Floating Input Bar */}
+           {activeTab === 'dashboard' && (
+             <div className="absolute bottom-6 left-0 right-0 px-4 z-20">
+               <div className="max-w-3xl mx-auto">
+                 <div className="glass-panel-strong rounded-[2rem] p-3 shadow-2xl flex flex-col gap-2 relative transition-all duration-300 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500/30">
+                   
+                   {/* Top Toolbar */}
+                   <div className="flex justify-between items-center px-2">
+                     <ModelSelector currentMode={mode} onModeChange={setMode} disabled={isLoading} />
+                     {selectedImage && (
+                        <div className="flex items-center gap-2 bg-sky-500/10 px-3 py-1 rounded-full border border-sky-500/20 animate-fade-up">
+                          <ImageIcon size={14} className="text-sky-400" />
+                          <span className="text-xs text-sky-200">تم إرفاق صورة</span>
+                          <button onClick={() => setSelectedImage(null)} className="hover:text-white text-sky-400/70"><X size={14}/></button>
+                        </div>
+                     )}
+                   </div>
+
+                   {/* Input Field */}
+                   <div className="flex items-end gap-2 px-1">
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-3 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
+                        title="إرفاق ملف"
+                      >
+                        <Paperclip size={22} />
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
+                      </button>
+                      
+                      <textarea
+                        ref={inputRef}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={mode === 'pro' ? "اكتب تفاصيل الحالة للتحليل العميق..." : "اكتب سؤالك هنا..."}
+                        className="w-full bg-transparent border-none text-white placeholder-gray-500 focus:ring-0 resize-none py-3 min-h-[48px] max-h-32 text-lg"
+                        rows={1}
+                        style={{ height: 'auto' }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
+                        }}
+                      />
+
+                      <button 
+                        onClick={handleManualSend}
+                        disabled={(!inputValue.trim() && !selectedImage) || isLoading}
+                        className={`p-3 rounded-full flex items-center justify-center transition-all duration-300 ${
+                          (inputValue.trim() || selectedImage) && !isLoading
+                            ? mode === 'pro' 
+                              ? 'bg-gradient-to-tr from-indigo-500 to-purple-600 text-white shadow-lg shadow-purple-500/20 hover:scale-105'
+                              : 'bg-white text-black shadow-lg hover:scale-105'
+                            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                         {isLoading ? (
+                           <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                         ) : (
+                           <ArrowUp size={22} strokeWidth={2.5} />
+                         )}
+                      </button>
+                   </div>
+                 </div>
+                 <div className="text-center mt-3">
+                   <p className="text-[10px] text-gray-600 font-medium">Secured by 21UMAS Clinical Protocols • AI may display inaccurate info.</p>
+                 </div>
+               </div>
+             </div>
+           )}
         </main>
       </div>
 

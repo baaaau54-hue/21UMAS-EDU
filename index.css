@@ -3,36 +3,56 @@
 @tailwind utilities;
 
 body {
-  background-color: #0f172a;
+  background-color: #020617; /* Deeper background for better contrast */
   color: #e2e8f0;
+  font-family: 'Tajawal', sans-serif;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Slimmer and cleaner */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b; 
+  background: transparent; 
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569; 
-  border-radius: 4px;
+  background: #334155; 
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b; 
+  background: #475569; 
 }
 
+/* Modern Glass Effect */
 .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.glass-panel-strong {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mask-linear-fade {
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+/* Smooth Fade In Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fadeIn 0.4s ease-out forwards;
 }
 
 @keyframes progress {

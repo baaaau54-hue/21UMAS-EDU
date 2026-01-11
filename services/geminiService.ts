@@ -59,7 +59,7 @@ export const streamResponse = async (
   customSystemInstruction?: string
 ) => {
   const ai = getClient();
-  const modelName = mode === 'pro' ? 'gemini-2.5-flash' : 'gemini-3-pro';
+  const modelName = mode === 'pro' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
   let systemInstruction = `
     أنت "21UMAS ${mode === 'pro' ? 'PRO' : 'FLASH'}"، المساعد الطبي الرسمي لجامعة 21 سبتمبر.
