@@ -9,12 +9,43 @@ const getClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+// Helper function for delay
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Retry logic wrapper
+const generateWithRetry = async (
+  ai: GoogleGenAI,
+  params: any,
+  retries = 3,
+  initialDelay = 2000
+): Promise<any> => {
+  try {
+    return await ai.models.generateContent(params);
+  } catch (error: any) {
+    const msg = error.message || '';
+    // Retry on Rate Limit (429) or Server Overload (503)
+    const isRetryable = 
+      msg.includes('429') || 
+      msg.includes('503') || 
+      msg.includes('RESOURCE_EXHAUSTED') || 
+      msg.includes('quota') ||
+      msg.includes('overloaded');
+    
+    if (retries > 0 && isRetryable) {
+      console.warn(`Gemini API Request failed with ${msg}. Retrying in ${initialDelay}ms... (Attempts left: ${retries})`);
+      await wait(initialDelay);
+      return generateWithRetry(ai, params, retries - 1, initialDelay * 2);
+    }
+    throw error;
+  }
+};
+
 export const generateResponse = async (
   history: Message[],
   currentPrompt: string,
   imageBase64: string | undefined,
   mode: ModelMode,
-  customSystemInstruction?: string // New optional parameter
+  customSystemInstruction?: string
 ): Promise<{ text: string; sources: GroundingSource[] }> => {
   const ai = getClient();
   
@@ -66,7 +97,8 @@ export const generateResponse = async (
       config.thinkingConfig = { thinkingBudget: 2048 };
     }
 
-    const response = await ai.models.generateContent({
+    // Execute with Retry
+    const response = await generateWithRetry(ai, {
       model: modelName,
       contents: contents,
       config: config
@@ -95,20 +127,22 @@ export const generateResponse = async (
     
     let errorMessage = error.message || JSON.stringify(error);
 
-    // Handle Quota Limits (Error 429)
+    // Friendly Error Handling
     if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("⚠️ لقد تجاوزت الحد اليومي المسموح به لاستخدام الذكاء الاصطناعي (Quota Exceeded). يرجى الانتظار قليلاً أو استخدام مفتاح API مدفوع.");
+      throw new Error("⚠️ النظام مشغول جداً حالياً (High Traffic). على الرغم من أن حسابك جديد، إلا أن نماذج المعاينة (Preview Models) قد تكون ممتلئة. تم تفعيل إعادة المحاولة التلقائية، لكن يرجى الانتظار دقيقة والمحاولة مجدداً.");
     }
     
-    // Handle Model Overloaded (Error 503)
     if (errorMessage.includes("503") || errorMessage.includes("overloaded")) {
-      throw new Error("⚠️ الخادم مشغول جداً حالياً (Model Overloaded). يرجى المحاولة مرة أخرى.");
+      throw new Error("⚠️ الخادم مشغول جداً (Server Overloaded). يرجى المحاولة مرة أخرى.");
+    }
+
+    if (errorMessage.includes("API Key not found")) {
+      throw new Error("⚠️ مفتاح النظام مفقود. يرجى التأكد من إعدادات Vercel.");
     }
 
     // Handle Clean Output for raw JSON errors
     if (errorMessage.includes("{")) {
        try {
-         // Attempt to extract just the message text if it's a JSON string
          const match = errorMessage.match(/"message":\s*"([^"]+)"/);
          if (match && match[1]) {
            errorMessage = match[1];
