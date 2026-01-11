@@ -1,7 +1,11 @@
 import React from 'react';
-import { Menu, Share2, Info, Wifi, Battery, Bell } from 'lucide-react';
+import { Share2, Wifi, Battery, Bell, Key } from 'lucide-react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenSettings: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   return (
     <header className="h-16 border-b border-gray-800/50 bg-[#020617]/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-40">
       
@@ -20,6 +24,14 @@ export const Header: React.FC = () => {
       
       {/* Right: Actions */}
       <div className="flex items-center gap-3">
+        <button 
+          onClick={onOpenSettings}
+          className="p-2 text-gray-400 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all relative border border-transparent hover:border-sky-500/20"
+          title="API Key Settings"
+        >
+          <Key size={18} />
+        </button>
+
         <button className="p-2 text-gray-400 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all relative">
           <Bell size={18} />
           <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>

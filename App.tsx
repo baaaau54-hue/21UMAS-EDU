@@ -55,6 +55,8 @@ import { NephroPanel } from './components/NephroPanel';
 import { ForensicPanel } from './components/ForensicPanel';
 import { TravelPanel } from './components/TravelPanel';
 
+import { ApiKeyModal } from './components/ApiKeyModal';
+
 import { Message, ModelMode, AppTab } from './types';
 import { generateResponse } from './services/geminiService';
 import { Send, AlertCircle, Paperclip, X, Mic, Image as ImageIcon } from 'lucide-react';
@@ -67,6 +69,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ModelMode>('pro');
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -151,6 +154,11 @@ const App: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'خطأ في الاتصال بالنظام.');
       setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
+      
+      // Auto open settings if key issue
+      if (err.message?.includes('Quota') || err.message?.includes('Key')) {
+        setTimeout(() => setIsSettingsOpen(true), 2000);
+      }
     } finally {
       setIsLoading(false);
       if (activeTab === 'dashboard') {
@@ -245,9 +253,19 @@ const App: React.FC = () => {
                       <MessageBubble key={msg.id} message={msg} />
                     ))}
                     {error && (
-                      <div className="flex items-center gap-2 p-4 mb-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm animate-in fade-in">
-                        <AlertCircle size={18} />
-                        <span>{error}</span>
+                      <div className="flex items-center justify-between p-4 mb-4 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in">
+                        <div className="flex items-center gap-2 text-red-400 text-sm">
+                          <AlertCircle size={18} />
+                          <span>{error}</span>
+                        </div>
+                        {(error.includes('Quota') || error.includes('Key')) && (
+                          <button 
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded-lg transition-colors border border-red-500/30"
+                          >
+                            إضافة مفتاح
+                          </button>
+                        )}
                       </div>
                     )}
                     <div ref={messagesEndRef} />
@@ -333,11 +351,13 @@ const App: React.FC = () => {
       ></div>
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="flex-1 flex flex-col h-full relative z-10">
-        <Header />
+        <Header onOpenSettings={() => setIsSettingsOpen(true)} />
         <main className="flex-1 overflow-hidden relative flex flex-col w-full">
            {renderMainContent()}
         </main>
       </div>
+
+      <ApiKeyModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };

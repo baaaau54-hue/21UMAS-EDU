@@ -2,9 +2,12 @@ import { GoogleGenAI } from "@google/genai";
 import { Message, GroundingSource, ModelMode } from '../types';
 
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Check for user-provided key in localStorage first
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('21umas_user_api_key') : null;
+  const apiKey = localKey || process.env.API_KEY;
+
   if (!apiKey) {
-    throw new Error("API Key not found in environment variables");
+    throw new Error("API Key not found. Please add your key in settings.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -129,7 +132,7 @@ export const generateResponse = async (
 
     // Friendly Error Handling
     if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("⚠️ النظام مشغول جداً حالياً (High Traffic). على الرغم من أن حسابك جديد، إلا أن نماذج المعاينة (Preview Models) قد تكون ممتلئة. تم تفعيل إعادة المحاولة التلقائية، لكن يرجى الانتظار دقيقة والمحاولة مجدداً.");
+      throw new Error("⚠️ النظام مشغول (Quota Exceeded). يرجى الضغط على زر المفتاح (Key) في الأعلى واستخدام مفتاحك الخاص مجاناً.");
     }
     
     if (errorMessage.includes("503") || errorMessage.includes("overloaded")) {
@@ -137,7 +140,7 @@ export const generateResponse = async (
     }
 
     if (errorMessage.includes("API Key not found")) {
-      throw new Error("⚠️ مفتاح النظام مفقود. يرجى التأكد من إعدادات Vercel.");
+      throw new Error("⚠️ مفتاح النظام مفقود. يرجى إضافته من الإعدادات.");
     }
 
     // Handle Clean Output for raw JSON errors
