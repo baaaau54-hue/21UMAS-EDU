@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Prevents crash if API_KEY is missing during build, but allows it to be injected
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || '')
     },
     build: {
       chunkSizeWarningLimit: 2000,
