@@ -14,28 +14,37 @@ const getClient = () => {
 // Helper function for delay
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Wrapper to initiate stream with retry logic
+// Wrapper to initiate stream with robust retry logic for "unlimited" wait feel
 const streamWithRetry = async (
   ai: GoogleGenAI,
   params: any,
-  retries = 3,
+  retries = 50, // High retry count to simulate "unlimited" wait time during overloads/timeouts
   initialDelay = 2000
 ): Promise<any> => {
   try {
     return await ai.models.generateContentStream(params);
   } catch (error: any) {
     const msg = error.message || '';
+    // Retry on various transient errors including Timeouts, Rate Limits, and Server Errors
     const isRetryable = 
       msg.includes('429') || 
       msg.includes('503') || 
+      msg.includes('504') ||
       msg.includes('RESOURCE_EXHAUSTED') || 
       msg.includes('quota') ||
-      msg.includes('overloaded');
+      msg.includes('overloaded') ||
+      msg.toLowerCase().includes('timeout') ||
+      msg.toLowerCase().includes('network error') ||
+      msg.toLowerCase().includes('failed to fetch');
     
     if (retries > 0 && isRetryable) {
-      console.warn(`Gemini Stream Init failed with ${msg}. Retrying in ${initialDelay}ms...`);
+      // Log retry attempt (silent to user, visible in console)
+      console.warn(`Gemini API Retry (${50 - retries + 1}/50): ${msg}. Waiting ${initialDelay}ms...`);
+      
+      // Cap the maximum delay to 30 seconds to maintain some responsiveness while persisting
+      const nextDelay = Math.min(initialDelay * 1.5, 30000); 
       await wait(initialDelay);
-      return streamWithRetry(ai, params, retries - 1, initialDelay * 2);
+      return streamWithRetry(ai, params, retries - 1, nextDelay);
     }
     throw error;
   }
@@ -50,7 +59,7 @@ export const streamResponse = async (
   customSystemInstruction?: string
 ) => {
   const ai = getClient();
-  const modelName = mode === 'pro' ? 'gemini-flash-latest' : 'gemini-2.5-flash';
+  const modelName = mode === 'pro' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
   let systemInstruction = `
     أنت "21UMAS ${mode === 'pro' ? 'PRO' : 'FLASH'}"، المساعد الطبي الرسمي لجامعة 21 سبتمبر.
@@ -109,21 +118,10 @@ export const streamResponse = async (
       // Extract Text
       const chunkText = chunk.text || '';
       
-      // Attempt to extract thinking content if available in parts
-      // Note: The structure of thinking parts varies in preview models. 
-      // We check candidates for specific 'thought' parts if exposed, otherwise we assume initial delay implies thinking.
+      // In current preview models, thinking content might be interleaved or separate.
+      // We rely on the UI to show "Thinking..." if text is empty.
+      
       const candidates = chunk.candidates || [];
-      const parts = candidates[0]?.content?.parts || [];
-      
-      let chunkThinking = '';
-      
-      // Heuristic: If specific thinking parts are exposed in future API versions, extract here.
-      // Currently, we mostly rely on the 'Thinking...' UI state, but if the model emits separate thought blocks:
-      parts.forEach((part: any) => {
-         // Some experimental models label thoughts differently, or wrap them.
-         // For now, we mainly stream the text.
-      });
-
       fullText += chunkText;
 
       // Extract Grounding
